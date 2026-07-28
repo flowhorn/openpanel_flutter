@@ -69,6 +69,15 @@ class MyApp extends StatelessWidget {
 }
 ```
 
+### Session tracking
+
+OpenPanel creates and extends sessions automatically from client events. You do
+not need to start or stop sessions in your Flutter app. A session expires after
+30 minutes without an event, and the next event starts a new session.
+
+The SDK sends client-recognizable platform information on Android, iOS, macOS,
+Windows, Linux, and web so that OpenPanel can create sessions consistently.
+
 ### Track install referrer
 
 To track the referrer url, use the `ReferrerObserver` if you want to track the referrer url

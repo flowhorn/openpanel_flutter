@@ -74,27 +74,27 @@ class Openpanel {
 
     final OpenpanelState? savedState =
         await _preferencesService.getSavedState();
+    final deviceData = await _getTrackedDeviceData();
+
     if (savedState != null) {
-      _state = savedState;
+      _state = savedState.copyWith(
+        properties: {
+          ...savedState.properties,
+          ...deviceData,
+        },
+      );
     } else {
-      final deviceData = await _getTrackedDeviceData();
-
-      double rate = options.tracingSampleRate;
-      bool sampled = rate >= 1.0 || Random().nextDouble() < rate;
-
-      if (deviceData.isNotEmpty) {
-        setGlobalProperties(deviceData);
-        _state = _state.copyWith(
-          profileId: const Uuid().v4(),
-          deviceId: deviceData['deviceId'] ?? const Uuid().v4(),
-          isTracingSampled: sampled,
-        );
-      } else {
-        _state = _state.copyWith(isTracingSampled: sampled);
-      }
-
-      _preferencesService.persistState(_state);
+      final rate = options.tracingSampleRate;
+      final sampled = rate >= 1.0 || Random().nextDouble() < rate;
+      _state = _state.copyWith(
+        profileId: const Uuid().v4(),
+        deviceId: deviceData['deviceId'] ?? const Uuid().v4(),
+        properties: deviceData,
+        isTracingSampled: sampled,
+      );
     }
+
+    await _preferencesService.persistState(_state);
     // HTTP CLient
 
     _httpClient = OpenpanelHttpClient(
@@ -238,13 +238,17 @@ class Openpanel {
 
   Future<Map<String, dynamic>> _getTrackedDeviceData() async {
     final PackageInfo packageInfo = await PackageInfo.fromPlatform();
-    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    final deviceInfo = DeviceInfoPlugin();
 
     Map<String, dynamic> properties = {
       'appVersion': packageInfo.version,
       'buildNumber': packageInfo.buildNumber,
       'installerStore': packageInfo.installerStore,
     };
+
+    if (kIsWeb) {
+      return properties;
+    }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
       final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
@@ -254,6 +258,10 @@ class Openpanel {
         'model': androidInfo.model,
         'manufacturer': androidInfo.manufacturer,
         'osVersion': androidInfo.version.release,
+        '__os': 'Android',
+        '__osVersion': androidInfo.version.release,
+        '__brand': androidInfo.brand,
+        '__model': androidInfo.model,
       });
     } else if (defaultTargetPlatform == TargetPlatform.iOS) {
       final IosDeviceInfo iosDeviceInfo = await deviceInfo.iosInfo;
@@ -262,6 +270,54 @@ class Openpanel {
         'brand': iosDeviceInfo.name,
         'model': iosDeviceInfo.model,
         'osVersion': iosDeviceInfo.systemVersion,
+        '__os': 'iOS',
+        '__osVersion': iosDeviceInfo.systemVersion,
+        '__brand': 'Apple',
+        '__model': iosDeviceInfo.model,
+      });
+    } else if (defaultTargetPlatform == TargetPlatform.macOS) {
+      final macOsInfo = await deviceInfo.macOsInfo;
+      final osVersion = [
+        macOsInfo.majorVersion,
+        macOsInfo.minorVersion,
+        macOsInfo.patchVersion,
+      ].join('.');
+      properties.addAll({
+        'brand': 'Apple',
+        'model': macOsInfo.model,
+        'manufacturer': 'Apple',
+        'osVersion': osVersion,
+        '__os': 'macOS',
+        '__osVersion': osVersion,
+        '__device': 'desktop',
+        '__brand': 'Apple',
+        '__model': macOsInfo.model,
+      });
+    } else if (defaultTargetPlatform == TargetPlatform.windows) {
+      final windowsInfo = await deviceInfo.windowsInfo;
+      final windowsVersion = windowsInfo.buildNumber >= 22000 ? '11' : '10';
+      properties.addAll({
+        'brand': windowsInfo.productName,
+        'model': windowsInfo.editionId,
+        'manufacturer': 'Microsoft',
+        'osVersion': windowsInfo.displayVersion,
+        '__os': 'Windows',
+        '__osVersion': '$windowsVersion ${windowsInfo.displayVersion}'.trim(),
+        '__device': 'desktop',
+        '__brand': 'Microsoft',
+        '__model': windowsInfo.productName,
+      });
+    } else if (defaultTargetPlatform == TargetPlatform.linux) {
+      final linuxInfo = await deviceInfo.linuxInfo;
+      properties.addAll({
+        'brand': linuxInfo.name,
+        'model': linuxInfo.prettyName,
+        'osVersion': linuxInfo.versionId ?? linuxInfo.version,
+        '__os': 'Linux',
+        '__osVersion': linuxInfo.versionId ?? linuxInfo.version ?? '',
+        '__device': 'desktop',
+        '__brand': linuxInfo.name,
+        '__model': linuxInfo.prettyName,
       });
     }
 

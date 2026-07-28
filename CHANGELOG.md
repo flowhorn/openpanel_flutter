@@ -1,3 +1,7 @@
+## Unreleased
+- Fix session creation on macOS and Windows by sending client-recognizable user agents
+- Add explicit platform metadata overrides for Android, iOS, macOS, Windows, and Linux
+
 ## 0.3.0
 - **Breaking**: Migrate to new OpenPanel tracking API
   - All API calls now use the unified `/track` endpoint

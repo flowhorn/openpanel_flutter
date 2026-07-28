@@ -5,6 +5,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/widgets.dart'
     show WidgetsBinding, WidgetsFlutterBinding;
 
+/// Builds user agents that OpenPanel recognizes as client traffic.
+///
+/// OpenPanel only creates sessions for client events, so every platform must
+/// include a conventional OS token that `ua-parser-js` can recognize.
 class DeviceUserAgent {
   final DeviceInfoPlugin _deviceInfo;
 
@@ -53,17 +57,13 @@ class DeviceUserAgent {
 
   String _buildAndroidUserAgent(AndroidDeviceInfo info, String appName,
       String appVersion, String appBuild) {
-    final osVersion = info.version.release;
-    final manufacturer = info.manufacturer;
-    final model = info.model;
-
     final resolution = _getScreenResolution();
     final pixelRatio = _getDevicePixelRatio();
 
     return '$appName/$appVersion '
-        '(Android $osVersion; $model; build:$appBuild) '
-        'oem/$manufacturer '
-        'model/$model '
+        '(Linux; Android ${info.version.release}; '
+        'Model=${info.model}; Manufacturer=${info.manufacturer}; '
+        'build:$appBuild) '
         'screen/$resolution/$pixelRatio';
   }
 
@@ -71,27 +71,38 @@ class DeviceUserAgent {
       IosDeviceInfo info, String appName, String appVersion, String appBuild) {
     final resolution = _getScreenResolution();
     final pixelRatio = _getDevicePixelRatio();
+    final osVersion = info.systemVersion.replaceAll('.', '_');
+    final isIpad = info.model.toLowerCase().contains('ipad');
+    final device = isIpad ? 'iPad' : 'iPhone';
+    final cpuOs = isIpad ? 'CPU OS' : 'CPU iPhone OS';
 
     return '$appName/$appVersion '
-        '(iOS ${info.systemVersion}; ${info.utsname.machine}; build:$appBuild) '
-        'oem/Apple '
-        'model/${info.model} '
+        '($device; $cpuOs $osVersion like Mac OS X; '
+        'Model=${info.model}; Manufacturer=Apple; build:$appBuild) '
         'screen/$resolution/$pixelRatio';
   }
 
   String _buildMacOsUserAgent(MacOsDeviceInfo info, String appName,
       String appVersion, String appBuild) {
-    return '$appName/$appVersion (macOS ${info.osRelease}; ${info.model}; build:$appBuild)';
+    final osVersion =
+        '${info.majorVersion}_${info.minorVersion}_${info.patchVersion}';
+    return '$appName/$appVersion '
+        '(Macintosh; ${info.arch}; Mac OS X $osVersion; '
+        'Model=${info.model}; Manufacturer=Apple; build:$appBuild)';
   }
 
   String _buildWindowsUserAgent(WindowsDeviceInfo info, String appName,
       String appVersion, String appBuild) {
-    return '$appName/$appVersion (Windows ${info.displayVersion}; ${info.computerName}; build:$appBuild)';
+    final windowsVersion = info.buildNumber >= 22000 ? '11' : '10';
+    return '$appName/$appVersion '
+        '(Windows $windowsVersion; ${info.displayVersion}; '
+        'build:${info.buildNumber}; app-build:$appBuild)';
   }
 
   String _buildLinuxUserAgent(LinuxDeviceInfo info, String appName,
       String appVersion, String appBuild) {
-    return '$appName/$appVersion (Linux ${info.version ?? "Unknown"}; ${info.name}; build:$appBuild)';
+    return '$appName/$appVersion '
+        '(X11; Linux ${info.id}; ${info.prettyName}; build:$appBuild)';
   }
 
   /// Gets the screen resolution
