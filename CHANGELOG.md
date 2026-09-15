@@ -1,6 +1,7 @@
 ## Unreleased
 - Fix session creation on macOS and Windows by sending client-recognizable user agents
 - Add explicit platform metadata overrides for Android, iOS, macOS, Windows, and Linux
+- Update `package_info_plus` to 10.x and its compatible `device_info_plus` 13.x.
 
 ## 0.3.0
 - **Breaking**: Migrate to new OpenPanel tracking API
